@@ -5,9 +5,9 @@ import nx1125.simulator.simulation.Simulator;
 
 public class ElasticSimulation extends Simulation {
 
-    private double mFriction = 1;
-    private double mElasticConstant = 1;
-    private double mRestingRadius = 1;
+    private double mFriction = 0.001;
+    private double mElasticConstant = 1.364;
+    private double mRestingRadius = 0.194;
 
     public ElasticSimulation(int frameRate) {
         super(frameRate);
