@@ -27,26 +27,22 @@ public abstract class Simulation implements Serializable, Cloneable {
     /**
      * The number of frames to show in one second or one cycle.
      */
-    private int mFrameRate;
+    private int mFrameRate = 60;
     /**
      * The total of calculations to be done in this gravity. Each calculation, the gravity
      * advances mTimeInterval in time dimension.
      */
     private int mStatesCount = 60000; // Default value as 60 cycles of gravity
-    /**
-     * The number of calculations by one frame rate cycle. The frame rate cycle is the cycle of one
-     * second. The time equivalent to one cycle is mStatesByCycle * mTimeInterval.
-     */
-    private int mStatesByCycle = 1000;
+
     /**
      * The simulation time of one state. This is used to determine how much time in the
      * simulation is equivalent to one second. The term <code>cycle</code> is used to
      * represent the time interval of one second.
      */
-    private double mTimeInterval = 0.1 / mStatesByCycle;
+    private double mTimeInterval = 0.001;
 
     public Simulation() {
-        this(24);
+        this(60);
     }
 
     public Simulation(int frameRate) {
@@ -74,8 +70,7 @@ public abstract class Simulation implements Serializable, Cloneable {
     }
 
     /**
-     * Return the time interval that the gravity advances in each calculation. The gravity
-     * time by one cycle, or time density, can be computed with {@link #getTimeDenstity()}.
+     * Return the time interval that the gravity advances in each calculation.
      */
     public double getTimeInterval() {
         return mTimeInterval;
@@ -83,15 +78,6 @@ public abstract class Simulation implements Serializable, Cloneable {
 
     public void setTimeInterval(double timeInterval) {
         mTimeInterval = timeInterval;
-    }
-
-    /**
-     * Return the gravity time that fits in one cycle or one second. This is the same as the
-     * product between the {@linkplain #getTimeInterval() time interval} and how many
-     * {@linkplain #getStatesPerCycle() calculations by cycle}.
-     */
-    public double getTimeDenstity() {
-        return mTimeInterval * mStatesByCycle;
     }
 
     /**
@@ -103,17 +89,6 @@ public abstract class Simulation implements Serializable, Cloneable {
 
     public void setStatesCount(int statesCount) {
         mStatesCount = statesCount;
-    }
-
-    /**
-     * Return the count of calculations that fits in one cycle. This is a frame rate property.
-     */
-    public int getStatesPerCycle() {
-        return mStatesByCycle;
-    }
-
-    public void setStatesByCycle(int statesByCycle) {
-        mStatesByCycle = statesByCycle;
     }
 
     public int getFrameRate() {
@@ -131,7 +106,6 @@ public abstract class Simulation implements Serializable, Cloneable {
         return "Simulation{" +
                 ", timeInterval=" + mTimeInterval +
                 ", calculationCount=" + mStatesCount +
-                ", calculationsByCycle=" + mStatesByCycle +
                 '}';
     }
 

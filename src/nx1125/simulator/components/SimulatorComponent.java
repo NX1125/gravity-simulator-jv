@@ -1,12 +1,14 @@
 package nx1125.simulator.components;
 
+import nx1125.simulator.elastic.ElasticSimulator;
+import nx1125.simulator.elastic.LinearElasticSimulator;
 import nx1125.simulator.simulation.Planet;
 import nx1125.simulator.simulation.PlanetState;
+import nx1125.simulator.simulation.Simulator;
 
 import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Ellipse2D;
+import java.awt.geom.*;
 import java.util.function.Consumer;
 
 /**
@@ -15,9 +17,13 @@ import java.util.function.Consumer;
 public class SimulatorComponent extends CartesianComponent {
 
     private static final String TAG = "SimulatorView";
+    private static final float TOLERANCE_CLICK = 20;
+
     private final float[] mCachedClickPointToInverseTransform = new float[2];
+
     private Color mPlanetBackgroundColor;
     private Color mPlanetForegroundColor;
+
     private float mPlanetBorderWidth;
     private Stroke mPlanetBorderStroke;
     private int mPlanetCount = -1;
@@ -30,18 +36,39 @@ public class SimulatorComponent extends CartesianComponent {
     private int mCartesianHorizontalMargin = 20;
     private int mCartesianVerticalMargin = 20;
     private Ellipse2D.Float mOvalCache = new Ellipse2D.Float();
-    private OnPlanetClickedListener mOnPlanetClickedListener;
 
-    public SimulatorComponent() {
+    private OnPlanetClickedListener mOnPlanetClickedListener;
+    private OnPlanetMouseMotionListener mOnPlanetMouseMotionListener;
+
+    private int mPressedPlanetIndex = -1;
+    private int mReleasedPlanetIndex = -1;
+
+    private LineConnectionShape mLineConnectionShape;
+
+    private Color mLinePathColor;
+
+    private ElasticSimulator mElasticSimulator;
+    private Color mRestingRadiusBorderColor = Color.red;
+    private Color mRingColor = Color.blue.brighter();
+
+    public SimulatorComponent(Simulator simulator) {
         init();
+
+        if (simulator instanceof ElasticSimulator) {
+            mElasticSimulator = (ElasticSimulator) simulator;
+        }
     }
 
     private void init() {
         mPlanetBackgroundColor = Color.gray.brighter();
         mPlanetForegroundColor = Color.black;
 
+        mLinePathColor = Color.red;
+
         mPlanetBorderWidth = 1;
         mPlanetBorderStroke = new BasicStroke(mPlanetBorderWidth);
+
+        mLineConnectionShape = new LineConnectionShape();
     }
 
     public void setPlanetArray(Planet[] planetArray) {
@@ -62,11 +89,29 @@ public class SimulatorComponent extends CartesianComponent {
         float x = mCachedClickPointToInverseTransform[0];
         float y = mCachedClickPointToInverseTransform[1];
 
+        // System.out.println("Checking clicked point (" + x + ", " + y + ')');
+
+        float closestDistanceSqr = 0;
+        PlanetState closestState = null;
+        int closestStateIndex = 0;
+
         for (int i = 0; i < mPlanetCount; i++) {
             PlanetState s = mPlanetStateArray[i];
 
-            if (s.distanceSqr(x, y) <= mPlanetArray[i].getRadiusSqr()) {
-                return i;
+            float d = s.distanceSqr(x, y);
+
+            if (closestState == null || closestDistanceSqr > d) {
+                closestState = s;
+                closestDistanceSqr = d;
+                closestStateIndex = i;
+            }
+        }
+
+        if (closestState != null) {
+            float r = mPlanetArray[closestStateIndex].getRadius() + TOLERANCE_CLICK / getCartesianScale();
+
+            if (closestDistanceSqr <= r * r) {
+                return closestStateIndex;
             }
         }
 
@@ -75,16 +120,84 @@ public class SimulatorComponent extends CartesianComponent {
 
     @Override
     protected void onMouseClicked(MouseEvent e) {
-        if (mOnPlanetClickedListener != null) {
-            int index = getPlanetIndexAt(e.getX(), e.getY());
-            if (index != -1) {
-                mOnPlanetClickedListener.onPlanetClicked(index, mPlanetArray[index]);
+        System.out.println("Checking clicked point (" + e.getX() + ", " + e.getY() + ')');
+
+        if (mOnPlanetClickedListener != null && e.getButton() == MouseEvent.BUTTON1) {
+            System.out.println("Checking if there is a planet at the position");
+            if (mOnPlanetMouseMotionListener == null) {
+                mReleasedPlanetIndex = getPlanetIndexAt(e.getX(), e.getY());
+            }
+
+            System.out.println("Clicked planet index: " + mReleasedPlanetIndex);
+
+            if (mReleasedPlanetIndex != -1) {
+                mOnPlanetClickedListener.onPlanetClicked(mReleasedPlanetIndex, mPlanetArray[mReleasedPlanetIndex]);
             } else {
                 super.onMouseClicked(e);
             }
         } else {
             super.onMouseClicked(e);
         }
+    }
+
+    @Override
+    protected void onMousePressed(MouseEvent e) {
+        if (mOnPlanetMouseMotionListener != null && e.getButton() == MouseEvent.BUTTON1) {
+            System.out.println("Checking pressed button (" + e.getX() + ", " + e.getY() + ')');
+            mPressedPlanetIndex = getPlanetIndexAt(e.getX(), e.getY());
+            mReleasedPlanetIndex = mPressedPlanetIndex;
+
+            System.out.println("Pressed planet index: " + mPressedPlanetIndex);
+
+            if (mPressedPlanetIndex != -1) {
+                mOnPlanetMouseMotionListener.onMousePressed(mCachedClickPointToInverseTransform[0],
+                        mCachedClickPointToInverseTransform[1],
+                        mPressedPlanetIndex, mPlanetStateArray[mPressedPlanetIndex]);
+            } else {
+                super.onMousePressed(e);
+            }
+        } else {
+            super.onMousePressed(e);
+        }
+    }
+
+    @Override
+    protected void onMouseDragged(MouseEvent e) {
+        if (mPressedPlanetIndex != -1) {
+            setCachedPointArray(e.getX(), e.getY());
+            invert(mCachedClickPointToInverseTransform);
+
+            mOnPlanetMouseMotionListener.onPlanetDragged(mCachedClickPointToInverseTransform[0],
+                    mCachedClickPointToInverseTransform[1],
+                    mPressedPlanetIndex, mPlanetStateArray[mPressedPlanetIndex]);
+        } else {
+            super.onMouseDragged(e);
+        }
+    }
+
+    @Override
+    protected void onMouseReleased(MouseEvent e) {
+        if (mPressedPlanetIndex != -1) {
+            setCachedPointArray(e.getX(), e.getY());
+            invert(mCachedClickPointToInverseTransform);
+
+            System.out.println("Released planet index " + mPressedPlanetIndex);
+
+            mOnPlanetMouseMotionListener.onPlanetReleased(mCachedClickPointToInverseTransform[0],
+                    mCachedClickPointToInverseTransform[1],
+                    mPressedPlanetIndex, mPlanetStateArray[mPressedPlanetIndex]);
+
+            mReleasedPlanetIndex = mPressedPlanetIndex;
+            mPressedPlanetIndex = -1;
+        } else {
+            super.onMouseReleased(e);
+        }
+    }
+
+    public void setOnPlanetMouseMotionListener(OnPlanetMouseMotionListener l) {
+        mOnPlanetMouseMotionListener = l;
+
+        mPressedPlanetIndex = -1;
     }
 
     public void setOnPlanetClickedListener(OnPlanetClickedListener l) {
@@ -142,9 +255,45 @@ public class SimulatorComponent extends CartesianComponent {
             canvas.setColor(mPlanetBackgroundColor);
             onPaintCircumferences(canvas::fill);
 
-            canvas.setColor(mPlanetForegroundColor);
+            // draw lines between all planets in sequence
+            canvas.setColor(mLinePathColor);
+            canvas.draw(mLineConnectionShape);
+
             canvas.setStroke(mPlanetBorderStroke);
+
+            if (mElasticSimulator != null) {
+                float radius = (float) (getCartesianScale() * mElasticSimulator.getRestingDistance());
+                float radius2 = radius * 2;
+
+                canvas.setColor(mRestingRadiusBorderColor);
+                for (int i = 0, j = 0; i < mPlanetStateArray.length; i++) {
+                    mOvalCache.setFrame(mTransformArray[j++] - radius, mTransformArray[j++] - radius,
+                            radius2, radius2);
+
+                    canvas.draw(mOvalCache);
+                }
+
+                if (mElasticSimulator instanceof LinearElasticSimulator) {
+                    LinearElasticSimulator linear = (LinearElasticSimulator) mElasticSimulator;
+
+                    canvas.setColor(mRingColor);
+
+                    float scale = getCartesianScale();
+
+                    for (int i = 0, j = 0; i < mPlanetStateArray.length; i++) {
+                        float dx = (float) (linear.getRingTrigonometryPart(j)) * scale;
+                        float x = mTransformArray[j++];
+                        float dy = (float) (linear.getRingTrigonometryPart(j)) * scale;
+                        float y = mTransformArray[j++];
+
+                        canvas.drawLine((int) (x - dx), (int) (y - dy), (int) (x + dx), (int) (y + dy));
+                    }
+                }
+            }
+
+            canvas.setColor(mPlanetForegroundColor);
             onPaintCircumferences(canvas::draw);
+
         }
     }
 
@@ -223,5 +372,121 @@ public class SimulatorComponent extends CartesianComponent {
     public interface OnPlanetClickedListener {
 
         void onPlanetClicked(int index, Planet planet);
+    }
+
+    public interface OnPlanetMouseMotionListener {
+
+        void onMousePressed(float x, float y, int index, PlanetState planet);
+
+        void onPlanetDragged(float x, float y, int index, PlanetState planet);
+
+        void onPlanetReleased(float x, float y, int index, PlanetState planet);
+    }
+
+    private class LineConnectionShape implements Shape {
+
+        @Override
+        public Rectangle getBounds() {
+            return getBounds2D().getBounds();
+        }
+
+        @Override
+        public Rectangle2D getBounds2D() {
+            Rectangle2D.Float bounds = new Rectangle2D.Float(mTransformArray[0], mTransformArray[1], 0, 0);
+
+            for (int i = 1, j = 2; i < mPlanetCount; i++) {
+                bounds.add(mTransformArray[j++], mTransformArray[j++]);
+            }
+
+            return bounds;
+        }
+
+        @Override
+        public boolean contains(double x, double y) {
+            return false;
+        }
+
+        @Override
+        public boolean contains(Point2D p) {
+            return false;
+        }
+
+        @Override
+        public boolean intersects(double x, double y, double w, double h) {
+            return true;
+        }
+
+        @Override
+        public boolean intersects(Rectangle2D r) {
+            return true;
+        }
+
+        @Override
+        public boolean contains(double x, double y, double w, double h) {
+            return false;
+        }
+
+        @Override
+        public boolean contains(Rectangle2D r) {
+            return false;
+        }
+
+        @Override
+        public PathIterator getPathIterator(AffineTransform at) {
+            return new PathIterator() {
+
+                private final float[] mArray = mTransformArray.clone();
+
+                private int mPointIndex;
+
+                @Override
+                public int getWindingRule() {
+                    return PathIterator.WIND_NON_ZERO;
+                }
+
+                @Override
+                public boolean isDone() {
+                    return mPointIndex >= mPlanetCount;
+                }
+
+                @Override
+                public void next() {
+                    mPointIndex++;
+                }
+
+                @Override
+                public int currentSegment(float[] coords) {
+                    int i = mPointIndex << 1;
+
+                    coords[0] = mArray[i];
+                    coords[1] = mArray[i + 1];
+
+                    if (mPointIndex == 0) {
+                        return PathIterator.SEG_MOVETO;
+                    }
+
+                    return PathIterator.SEG_LINETO;
+                }
+
+                @Override
+                public int currentSegment(double[] coords) {
+                    int i = mPointIndex << 1;
+
+                    coords[0] = mArray[i];
+                    coords[1] = mArray[i + 1];
+
+                    if (mPointIndex == 0) {
+                        return PathIterator.SEG_MOVETO;
+                    }
+
+                    return PathIterator.SEG_LINETO;
+                }
+            };
+        }
+
+        @Override
+        public PathIterator getPathIterator(AffineTransform at, double flatness) {
+            return getPathIterator(at);
+        }
     }
 }

@@ -2,19 +2,31 @@ package nx1125.simulator.simulation;
 
 public class SimulationUtils {
 
-    public static void advance(int planetCount, double time, PlanetState[] states) {
-        double halfTimeSqr = time * time * 0.5;
+    private static final int BIG_VALUES_COUNT = 16 * 1024;
+    private static final int SMALL_VALUES_COUNT = 1024 * 1024 * 2;
 
-        for (int i = 0; i < planetCount; i++) {
-            PlanetState state = states[i];
+    private static final double[] SQRT_BIG = new double[16384];
+    private static final double[] SQRT_LOW = new double[SMALL_VALUES_COUNT];
 
-            // advance position
-            state.x += state.vx * time + state.ax * halfTimeSqr;
-            state.y += state.vy * time + state.ay * halfTimeSqr;
-
-            // advance velocity
-            state.vx += state.ax * time;
-            state.vy += state.ay * time;
+    static {
+        for (int i = 0; i < BIG_VALUES_COUNT; i++) {
+            SQRT_BIG[i] = Math.sqrt(i);
         }
+        float div = 2f / SMALL_VALUES_COUNT;
+        for (int i = 0; i < SMALL_VALUES_COUNT; i++) {
+            SQRT_LOW[i] = Math.sqrt(i * div);
+        }
+    }
+
+    public static double hypot(double dx, double dy) {
+        return sqrt(dx * dx + dy * dy);
+    }
+
+    public static double sqrt(double value) {
+        return Math.sqrt(value);
+//        int highSqr = (int) value + 1;
+//        double lowSqr = value / highSqr;
+//
+//        return SQRT_BIG[highSqr] * SQRT_LOW[(int) (lowSqr*0.5 * SMALL_VALUES_COUNT)];
     }
 }

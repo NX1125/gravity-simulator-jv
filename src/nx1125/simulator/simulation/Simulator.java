@@ -6,35 +6,32 @@ package nx1125.simulator.simulation;
 
 public interface Simulator {
 
+    void onCreate();
+
+    PlanetState[] getLastComputedStates();
+
+    PlanetState[] computeStates();
+
     Simulation getSimulation();
-
-    PlanetState[] getPlanetStates(int state);
-
-    PlanetState[][] getPlanetStates();
 
     Planet[] getPlanets();
 
-    boolean isStateDone(int state);
-
-    int getLastAvailableState();
-
-    int getStatesPerCycle();
-
-    void start();
-
-    void interrupt();
-
-    void setOnSimulationEventListener(OnSimulatorEventListener l);
-
-    interface OnSimulatorEventListener {
-
-        /**
-         * Called when the first state is done.
-         */
-        void onSimulationStarted(Simulator simulator);
-
-        void onSimulationFinish(Simulator simulator);
-
-        void onSimulationProgressUpdated(Simulator simulator, int step);
+    default double getTotalEnergy() {
+        return getKineticEnergy() + getPotentialEnergy();
     }
+
+    default double getKineticEnergy() {
+        double kinetics = 0;
+        PlanetState[] states = getLastComputedStates();
+        Planet[] planets = getPlanets();
+        for (int i = 0; i < planets.length; i++) {
+            PlanetState state = states[i];
+            Planet planet = planets[i];
+
+            kinetics += 0.5 * planet.getMass() * (state.vx * state.vx + state.vy * state.vy);
+        }
+        return kinetics;
+    }
+
+    double getPotentialEnergy();
 }

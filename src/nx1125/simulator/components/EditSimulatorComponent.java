@@ -27,6 +27,7 @@ public class EditSimulatorComponent extends CartesianComponent {
     private final Ellipse2D.Float mOvalCache = new Ellipse2D.Float();
     private Color mPlanetBackgroundColor;
     private Color mPlanetForegroundColor;
+    private Color mCapPlanetForegroundColor;
     private float mPlanetBorderWidth;
     private Stroke mPlanetBorderStroke;
     private Color mVelocityColor;
@@ -59,6 +60,7 @@ public class EditSimulatorComponent extends CartesianComponent {
     private void init() {
         mPlanetBackgroundColor = Color.gray.brighter();
         mPlanetForegroundColor = Color.black;
+        mCapPlanetForegroundColor = Color.green.darker();
         mPlanetBorderWidth = 1;
         mPlanetBorderStroke = new BasicStroke(mPlanetBorderWidth);
 
@@ -330,6 +332,20 @@ public class EditSimulatorComponent extends CartesianComponent {
         for (int i = 0; i < mStepCount; i++) onPaintCircumferences(canvas, LINE_COUNT);
         if (mStepCountRest > 0) onPaintCircumferences(canvas, mStepCountRest);
 
+        if (mPlanetInfoList.size() >= 2) {
+            canvas.setColor(mCapPlanetForegroundColor);
+            canvas.setStroke(mPlanetBorderStroke);
+
+            mPointArrayIndex = 0;
+
+            fillArrayWithPlanetCircumference(mPlanetInfoList.get(0));
+            fillArrayWithPlanetCircumference(mPlanetInfoList.get(mPlanetInfoList.size() - 1));
+
+            getCartesianMatrix().transform(mCachedPointArray, 0, mCachedPointArray, 0, 4);
+
+            paintOvals(2, canvas::draw);
+        }
+
         canvas.setColor(mVelocityColor);
 
         int offset = 0;
@@ -434,9 +450,9 @@ public class EditSimulatorComponent extends CartesianComponent {
         // top and bottom are inverted because the assumption is that the scale in y is always
         // negative
         mCachedPointArray[mPointArrayIndex++] = planetInfo.mLeft;
-        mCachedPointArray[mPointArrayIndex++] = planetInfo.mBottom;
-        mCachedPointArray[mPointArrayIndex++] = planetInfo.mRight;
         mCachedPointArray[mPointArrayIndex++] = planetInfo.mTop;
+        mCachedPointArray[mPointArrayIndex++] = planetInfo.mRight;
+        mCachedPointArray[mPointArrayIndex++] = planetInfo.mBottom;
 //        }
     }
 

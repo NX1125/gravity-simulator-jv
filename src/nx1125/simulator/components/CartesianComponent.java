@@ -218,7 +218,7 @@ public class CartesianComponent extends JComponent {
         float y = point[1];
 
         point[0] = (x - mOriginX) / mScale;
-        point[1] = (mOriginY - y) / mScale;
+        point[1] = (y - mOriginY) / mScale;
     }
 
     private void onSimpleTranslationTriggered(MouseEvent event) {
@@ -520,7 +520,7 @@ public class CartesianComponent extends JComponent {
     private void invalidateMatrix() {
         mMatrix.setToTranslation(mOriginX, mOriginY);
         // this must be a pre scale
-        mMatrix.scale(mScale, -mScale);
+        mMatrix.scale(mScale, mScale);
     }
 
     public float getCartesianScale() {

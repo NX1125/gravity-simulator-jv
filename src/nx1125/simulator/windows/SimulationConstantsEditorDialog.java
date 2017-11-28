@@ -1,6 +1,7 @@
 package nx1125.simulator.windows;
 
 import nx1125.simulator.elastic.ElasticSimulation;
+import nx1125.simulator.elastic.LinearElasticSimulation;
 import nx1125.simulator.gravity.GravitySimulation;
 import nx1125.simulator.simulation.Simulation;
 
@@ -19,12 +20,13 @@ public class SimulationConstantsEditorDialog extends JDialog {
     private JTextField mUniverseTime;
     private JTextField mPermeability;
     private JTextField mGravity;
-    private JTextField mStatesByCycle;
     private JTextField mFrameRate;
     private JTextField mStatesCount;
     private JTextField mElasticConstant;
     private JTextField mElasticRest;
     private JTextField mFriction;
+
+    private JTextField mTension;
 
     public SimulationConstantsEditorDialog(Simulation simulation) {
         mSimulation = simulation;
@@ -61,10 +63,13 @@ public class SimulationConstantsEditorDialog extends JDialog {
             setValueOf(mElasticConstant, elasticSimulation.getElasticConstant());
             setValueOf(mElasticRest, elasticSimulation.getRestingRadius());
             setValueOf(mFriction, elasticSimulation.getFrictionConstant());
+
+            if (elasticSimulation instanceof LinearElasticSimulation) {
+                setValueOf(mTension, ((LinearElasticSimulation) elasticSimulation).getTension());
+            }
         }
 
         setValueOf(mUniverseTime, mSimulation.getTimeInterval());
-        setValueOf(mStatesByCycle, mSimulation.getStatesPerCycle());
         setValueOf(mFrameRate, mSimulation.getFrameRate());
         setValueOf(mStatesCount, mSimulation.getStatesCount());
 
@@ -86,11 +91,14 @@ public class SimulationConstantsEditorDialog extends JDialog {
                 elasticSimulation.setElasticConstant(getDoubleOf(mElasticConstant));
                 elasticSimulation.setRestingRadius(getDoubleOf(mElasticRest));
                 elasticSimulation.setFriction(getDoubleOf(mFriction));
+
+                if (elasticSimulation instanceof LinearElasticSimulation) {
+                    ((LinearElasticSimulation) elasticSimulation).setTension(getDoubleOf(mTension));
+                }
             }
 
             mSimulation.setTimeInterval(getDoubleOf(mUniverseTime));
             mSimulation.setFrameRate(getIntegerOf(mFrameRate));
-            mSimulation.setStatesByCycle(getIntegerOf(mStatesByCycle));
             mSimulation.setStatesCount(getIntegerOf(mStatesCount));
 
             dispose();
@@ -104,7 +112,7 @@ public class SimulationConstantsEditorDialog extends JDialog {
         dispose();
     }
 
-    private static void setValueOf(JTextField field, double value) {
+    public static void setValueOf(JTextField field, double value) {
         field.setText(Double.toString(value));
     }
 
@@ -112,7 +120,7 @@ public class SimulationConstantsEditorDialog extends JDialog {
         field.setText(Integer.toString(value));
     }
 
-    private static double getDoubleOf(JTextField field) {
+    public static double getDoubleOf(JTextField field) {
         return Double.parseDouble(field.getText());
     }
 

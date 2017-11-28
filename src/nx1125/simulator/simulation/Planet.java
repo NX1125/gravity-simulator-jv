@@ -18,7 +18,7 @@ public class Planet implements Serializable {
     private double mCharge = 0;
 
     private float mRadius = 1;
-    private float mRadiusSqr;
+    private float mRadiusSqr = mRadius * mRadius;
 
     public Planet() {
     }

@@ -15,6 +15,10 @@ public class PlanetState implements Cloneable {
     public double ax;
     public double ay;
 
+    public double ringAngle;
+    public double ringAngleVelocity;
+    public double ringAngleAcceleration;
+
     public PlanetState(Planet planet) {
         x = planet.getX();
         y = planet.getY();
@@ -69,7 +73,9 @@ public class PlanetState implements Cloneable {
     }
 
     public void clearAcceleration() {
-        ax = ay = 0;
+        ax = 0;
+        ay = 0;
+        ringAngleAcceleration = 0;
     }
 
     public double distance(PlanetState s1) {

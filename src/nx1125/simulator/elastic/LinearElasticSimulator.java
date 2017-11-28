@@ -46,6 +46,11 @@ public class LinearElasticSimulator extends ElasticSimulator {
         return states;
     }
 
+    private static double atan2(double x, double y) {
+        double atan2 = Math.atan2(y, x);
+        return atan2 < 0 ? 2 * Math.PI + atan2 : atan2;
+    }
+
     private void updateRingTrigonometricValues(PlanetState[] states) {
         int count = states.length - 1;
 
@@ -206,10 +211,5 @@ public class LinearElasticSimulator extends ElasticSimulator {
 
 //        s0.ax += (dx * mNaturalTension) / r;
 //        s0.ay += (dy * mNaturalTension) / r;
-    }
-
-    private static double atan2(double x, double y) {
-        double atan2 = Math.atan2(y, x);
-        return atan2 < 0 ? 2 * Math.PI + atan2 : atan2;
     }
 }

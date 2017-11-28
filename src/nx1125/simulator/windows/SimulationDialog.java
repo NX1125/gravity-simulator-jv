@@ -3,11 +3,13 @@ package nx1125.simulator.windows;
 import nx1125.simulator.FrameRateThread;
 import nx1125.simulator.components.SimulatorComponent;
 import nx1125.simulator.elastic.ElasticSimulator;
-import nx1125.simulator.simulation.*;
+import nx1125.simulator.elastic.LinearElasticSimulator;
+import nx1125.simulator.simulation.Planet;
+import nx1125.simulator.simulation.PlanetState;
+import nx1125.simulator.simulation.Simulation;
+import nx1125.simulator.simulation.Simulator;
 
 import javax.swing.*;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
@@ -16,7 +18,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
-public class SimulationDialog extends JDialog {
+public class SimulationDialog extends JFrame {
+
+    private final SlidersDialog dialog;
 
     private JPanel contentPane;
 
@@ -25,8 +29,6 @@ public class SimulationDialog extends JDialog {
     private JPanel mSimulationPane;
 
     private JButton mPlayButton;
-
-    private JSlider mTimeline;
 
     private SimulatorComponent mSimulatorComponent;
 
@@ -38,14 +40,25 @@ public class SimulationDialog extends JDialog {
 
     private JFileChooser mFileChooser = new JFileChooser();
 
-    public SimulationDialog(Simulator simulator) {
+    private MainWindow mMainWindow;
+
+    public SimulationDialog(Simulator simulator, MainWindow mainWindow) {
         mSimulator = simulator;
         mFramePerSecond = simulator.getSimulation().getFrameRate();
+        mMainWindow = mainWindow;
+
+        if (mSimulator instanceof LinearElasticSimulator) {
+            dialog = new SlidersDialog(this);
+
+            dialog.setVisible(true);
+        } else {
+            dialog = null;
+        }
 
         initMenuBar();
 
         setContentPane(contentPane);
-        setModal(true);
+        // setModal(true);
 
         buttonCancel.addActionListener(e -> onCancel());
 
@@ -61,8 +74,10 @@ public class SimulationDialog extends JDialog {
         contentPane.registerKeyboardAction(e -> onCancel(), KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
                 JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT);
 
-        mSimulatorComponent = new SimulatorComponent();
+        System.out.println("Creating simulator component");
+        mSimulatorComponent = new SimulatorComponent(simulator);
 
+        System.out.println("Registering planets into component");
         mSimulatorComponent.setPlanetArray(simulator.getPlanets());
 
         mSimulationPane.setLayout(new CardLayout(5, 5));
@@ -78,9 +93,8 @@ public class SimulationDialog extends JDialog {
             }
         });
 
-        mTimeline.setMaximum(mSimulator.getSimulation().getStatesCount() / mSimulator.getStatesPerCycle() + 1);
-
-        mFrameRateThread = new FrameRateThread(mFramePerSecond, simulator.getStatesPerCycle(), simulator.getSimulation().getStatesCount(),
+        System.out.println("Creating frame rate thread");
+        mFrameRateThread = new FrameRateThread(simulator,
                 new FrameRateThread.OnFrameUpdateListener() {
 
                     @Override
@@ -92,18 +106,10 @@ public class SimulationDialog extends JDialog {
                     }
 
                     @Override
-                    public void onFrameChanged(FrameRateThread thread, int frameIndex) {
-                        int state = mFrameRateThread.getSimulationState();
+                    public void onFrameChanged(FrameRateThread thread, int frameIndex, PlanetState[] states) {
+                        mSimulatorComponent.setPlanetStateArray(states);
 
-                        if (mSimulator.isStateDone(state)) {
-                            mSimulatorComponent.setPlanetStateArray(mSimulator.getPlanetStates(state));
-
-                            mTimeline.setValue(state / mSimulator.getStatesPerCycle());
-
-                            onInvalidate(thread);
-                        } else {
-                            mFrameRateThread.pause();
-                        }
+                        onInvalidate(thread);
                     }
 
                     @Override
@@ -112,62 +118,11 @@ public class SimulationDialog extends JDialog {
 
                         mSimulatorComponent.repaint();
                     }
-                });
-        mFrameRateThread.start();
-
-        mSimulator.setOnSimulationEventListener(new Simulator.OnSimulatorEventListener() {
-            @Override
-            public void onSimulationStarted(Simulator simulator) {
-                mSimulatorComponent.setPlanetStateArray(simulator.getPlanetStates(0));
-                mSimulatorComponent.repaint();
-            }
-
-            @Override
-            public void onSimulationFinish(Simulator simulator) {
-                mSimulator = new SimulationResults(simulator.getSimulation(),
-                        simulator.getPlanetStates(), null, simulator.getPlanets());
-            }
-
-            @Override
-            public void onSimulationProgressUpdated(Simulator simulator, int state) {
-                mTimeline.setExtent((mTimeline.getMaximum() - state) / mSimulator.getStatesPerCycle());
-
-                // System.out.println("Simulation progress: state = " + state);
-            }
-        });
-
-        mTimeline.addChangeListener(new ChangeListener() {
-            private boolean mWasPlaying = false;
-            private boolean mComesFromUser = false;
-
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                if (mTimeline.getValueIsAdjusting()) {
-                    mWasPlaying = mFrameRateThread.isPlaying() || mComesFromUser && mWasPlaying;
-                    if (mWasPlaying) mFrameRateThread.pause();
-
-                    mFrameRateThread.setCycle(mTimeline.getValue());
-                    mSimulatorComponent.setPlanetStateArray(mSimulator.getPlanetStates(mFrameRateThread.getSimulationState()));
-                    mComesFromUser = true;
-                    System.out.println("Timeline changed to " + mTimeline.getValue());
-
-                    mSimulatorComponent.repaint();
-                } else {
-                    if (mWasPlaying) {
-                        mFrameRateThread.play();
-                        mWasPlaying = false;
-                    }
-
-                    if (mComesFromUser) {
-                        mFrameRateThread.setCycle(mTimeline.getValue());
-                        mComesFromUser = false;
-                        System.out.println("Timeline changed to " + mTimeline.getValue());
-                    }
-                }
-            }
-        });
+                }, this);
 
         if (mSimulator instanceof ElasticSimulator) {
+            System.out.println("Elastic simulation detected. Adding support for locked planets click listener");
+
             mSimulatorComponent.setOnPlanetClickedListener((index, planet) -> {
                 System.out.println("Toggling planet " + planet + " lock state");
                 ElasticSimulator s = (ElasticSimulator) mSimulator;
@@ -176,11 +131,50 @@ public class SimulationDialog extends JDialog {
                     s.removeLockedPlanet(index);
                 }
             });
+            mSimulatorComponent.setOnPlanetMouseMotionListener(new SimulatorComponent.OnPlanetMouseMotionListener() {
+
+                private boolean mWasLocked;
+
+                private float mReferenceX;
+                private float mReferenceY;
+
+                @Override
+                public void onMousePressed(float x, float y, int index, PlanetState planet) {
+                    mReferenceX = (float) (x - planet.x);
+                    mReferenceY = (float) (y - planet.y);
+
+                    mWasLocked = !((ElasticSimulator) mSimulator).addLockedPlanet(index);
+                }
+
+                @Override
+                public void onPlanetDragged(float x, float y, int index, PlanetState planet) {
+                    while (mFrameRateThread.isProcessingSimulation()) {
+                    }
+
+                    planet.x = x - mReferenceX;
+                    planet.y = y - mReferenceY;
+                }
+
+                @Override
+                public void onPlanetReleased(float x, float y, int index, PlanetState planet) {
+                    if (!mWasLocked) {
+                        ((ElasticSimulator) mSimulator).removeLockedPlanet(index);
+                    }
+
+                    onPlanetDragged(x, y, index, planet);
+                }
+            });
+
+            ElasticSimulator elasticSimulator = (ElasticSimulator) simulator;
+
+            elasticSimulator.addLockedPlanet(0);
+            elasticSimulator.addLockedPlanet(elasticSimulator.getPlanetCount() - 1);
         }
 
-        pack();
+        System.out.println("Starting frame rate thread");
+        mFrameRateThread.start();
 
-        mSimulator.start();
+        pack();
     }
 
     private void initMenuBar() {
@@ -231,6 +225,10 @@ public class SimulationDialog extends JDialog {
         dispose();
 
         mFrameRateThread.interrupt();
-        mSimulator.interrupt();
+        dialog.setVisible(false);
+    }
+
+    public Simulator getSimulator() {
+        return mSimulator;
     }
 }

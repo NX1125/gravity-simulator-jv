@@ -28,11 +28,6 @@ public class GravitySimulator extends DefaultSimulator {
     }
 
     @Override
-    public boolean isCollisionEnabled() {
-        return mSimulation.isCollisionEnabled();
-    }
-
-    @Override
     protected void onCreateCache() {
         super.onCreateCache();
 
@@ -51,8 +46,8 @@ public class GravitySimulator extends DefaultSimulator {
     }
 
     @Override
-    protected void onCreateInitialStates() {
-        super.onCreateInitialStates();
+    protected PlanetState[] onCreateInitialStates() {
+        PlanetState[] states = super.onCreateInitialStates();
 
         int count = getPlanetCount();
 
@@ -69,6 +64,8 @@ public class GravitySimulator extends DefaultSimulator {
             mCachedElectricFieldMultipliersFromPlanets[i] = ratio * electricMultiplier;
             mCachedMagneticFieldMultipliersFromPlanets[i] = ratio * magneticMultiplier;
         }
+
+        return states;
     }
 
     public void computeAccelerations(Planet[] planets, PlanetState[] actualStates) {
@@ -107,6 +104,12 @@ public class GravitySimulator extends DefaultSimulator {
 
             cache0.clear();
         }
+    }
+
+    @Override
+    public double getPotentialEnergy() {
+        // TODO: 23/11/2017 Compute potential energy from all three forces
+        return 0;
     }
 
     private static void debug(String msg) {

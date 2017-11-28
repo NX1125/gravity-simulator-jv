@@ -1,7 +1,7 @@
 package nx1125.simulator.windows;
 
 import nx1125.simulator.components.EditSimulatorComponent;
-import nx1125.simulator.elastic.ElasticSimulation;
+import nx1125.simulator.elastic.LinearElasticSimulation;
 import nx1125.simulator.gravity.GravitySimulation;
 import nx1125.simulator.simulation.Planet;
 import nx1125.simulator.simulation.Simulation;
@@ -59,7 +59,7 @@ public class MainWindow extends JFrame {
     private boolean mEdited = false;
 
     public MainWindow() {
-        mSimulation = new ElasticSimulation();
+        mSimulation = new LinearElasticSimulation();
 
         System.out.println("Simulation type: " + mSimulation.getClass());
 
@@ -144,7 +144,7 @@ public class MainWindow extends JFrame {
         mSimulateButton.addActionListener(e -> {
             Simulator simulator = mSimulation.createSimulator();
 
-            SimulationDialog dialog = new SimulationDialog(simulator);
+            SimulationDialog dialog = new SimulationDialog(simulator, this);
 
             dialog.setVisible(true);
         });
@@ -156,6 +156,13 @@ public class MainWindow extends JFrame {
 
         initMenuBar();
 
+        if (mSimulation instanceof LinearElasticSimulation) {
+            // ((LinearElasticSimulation) mSimulation).setRestingRadius(0.5 * step);
+//            ((LinearElasticSimulation) mSimulation).setFriction(0.0);
+//            ((LinearElasticSimulation) mSimulation).setElasticConstant(100);
+            mSimulation.setTimeInterval(0.1);
+        }
+
         pack();
     }
 
@@ -166,6 +173,8 @@ public class MainWindow extends JFrame {
         mSimulation.addPlanet(planet);
 
         mEdited = true;
+
+        System.out.println("Add planet " + planet);
     }
 
     private void initMenuBar() {

@@ -1,135 +1,45 @@
 package nx1125.simulator.simulation;
 
-public abstract class DefaultSimulator extends Thread implements Simulator {
+import nx1125.simulator.FrameRateThread;
+
+public abstract class DefaultSimulator implements Simulator {
 
     private static final String TAG = "SimulatorThread";
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private final int mPlanetCount;
 
-    private final int mStepCount;
-
-    private final Planet[] planets;
+    private final Planet[] mPlanets;
 
     private final Simulation mSimulation;
+
     private final CubicFunction mCubicFunction = new CubicFunction();
     private final QuadraticFunction mQuadraticFunction = new QuadraticFunction();
-    private PlanetState[][] mPlanetStates;
-    private PlanetState[] mActualStep;
-    private int mStepIndex;
-
-    private int mDoneState;
-
-    private Simulator.OnSimulatorEventListener mOnSimulatorEventListener;
 
     private double[] mCachedCollisionRootsArray;
 
+    private double mTimeInterval;
+
+    private PlanetState[] mLastState;
+    private PlanetState[] mNextState;
+
+    private int mInnerStates = 500;
+
     public DefaultSimulator(Simulation simulation) {
-        super("SimulatorThread");
-
-        mStepCount = simulation.getStatesCount();
-
-        planets = simulation.getPlanets();
-        mPlanetCount = planets.length;
+        mPlanets = simulation.getPlanets();
+        mPlanetCount = mPlanets.length;
         mSimulation = simulation;
     }
 
     @Override
-    public void run() {
-        if (mOnSimulatorEventListener == null) {
-            throw new IllegalStateException("There is no OnSimulatorEventListener for the simulation. Terminating it.");
-        }
+    public Simulation getSimulation() {
+        return mSimulation;
+    }
 
-        info("Starting simulator to compute " + mStepCount + " steps with " + mPlanetCount + " planets");
-
-        debug("Initialing caches");
-        onCreateCache();
-
-        mActualStep = mPlanetStates[0];
-
-        debug("Creating initial states");
-        onCreateInitialStates();
-
-        mOnSimulatorEventListener.onSimulationStarted(this);
-
-        final double timeInterval = mSimulation.getTimeInterval() / mSimulation.getStatesPerCycle();
-
-        int count = mStepCount - 1;
-
-        mDoneState = -1;
-        mActualStep = mPlanetStates[0];
-
-        CollisionResult result = new CollisionResult();
-
-        int statesPerCycle = mSimulation.getStatesPerCycle();
-
-        debug("doInBackground: Starting simulation");
-
-        long initialTime = System.currentTimeMillis();
-
-        if (isCollisionEnabled()) {
-            for (mStepIndex = 0; mStepIndex < count && !Thread.interrupted(); ) {
-                double remainingTime = timeInterval;
-
-                computeAccelerations(planets, mActualStep);
-
-                nextStep();
-                copyFromLastState();
-
-                mDoneState++;
-
-                // deliver last step after copy, so it won't be used anymore
-                mOnSimulatorEventListener.onSimulationProgressUpdated(this, mDoneState);
-
-                while (checkCollisions(result, remainingTime, mPlanetCount, planets, mActualStep) && !isInterrupted()) {
-                    advance(result.getCollisionTime());
-                    remainingTime -= result.getCollisionTime();
-
-                    collide(result, mActualStep);
-
-                    result.clear();
-                }
-
-                advance(remainingTime);
-            }
-        } else {
-            // same loop as the true if case, but without the collision part
-            long lastCycleTime = getTime();
-
-            for (mStepIndex = 0; mStepIndex < count && !Thread.interrupted(); ) {
-                computeAccelerations(planets, mActualStep);
-
-                nextStep();
-                copyFromLastState();
-
-                mDoneState++;
-
-                if (DEBUG && (mDoneState % statesPerCycle) == 0) {
-                    debug("A new cycle is complete: " + (mDoneState / statesPerCycle) + " with " + (getTime() - lastCycleTime) + " milliseconds");
-                    lastCycleTime = getTime();
-                }
-
-                // deliver last step after copy, so it won't be used anymore
-                mOnSimulatorEventListener.onSimulationProgressUpdated(this, mDoneState);
-
-                advance(timeInterval);
-            }
-        }
-
-        // compute accelerations for last step which is outside the loop because there is no need
-        // to check for collisions as it is done in the loop
-        computeAccelerations(planets, mActualStep);
-
-        if (mStepIndex < count) {
-            info("Simulator interrupted at step " + mDoneState);
-        }
-
-        info("End of simulation. Took " + (getTime() - initialTime) + " milliseconds to complete");
-
-        debug("doInBackground: Creating simulation results and delivering it");
-
-        mOnSimulatorEventListener.onSimulationFinish(this);
+    @Override
+    public Planet[] getPlanets() {
+        return mPlanets;
     }
 
     private long getTime() {
@@ -137,60 +47,100 @@ public abstract class DefaultSimulator extends Thread implements Simulator {
     }
 
     protected Planet getPlanet(int index) {
-        return planets[index];
+        return mPlanets[index];
     }
 
     public int getPlanetCount() {
         return mPlanetCount;
     }
 
-    public abstract boolean isCollisionEnabled();
-
     @Override
-    public void setOnSimulationEventListener(Simulator.OnSimulatorEventListener l) {
-        mOnSimulatorEventListener = l;
-    }
+    public void onCreate() {
+        info("Starting simulator with " + mPlanetCount + " planets");
 
-    public PlanetState[][] getPlanetStates() {
-        return mPlanetStates;
-    }
+        debug("Initialing caches");
+        onCreateCache();
 
-    private void nextStep() {
-        mStepIndex++;
-        mActualStep = mPlanetStates[mStepIndex];
+        debug("Creating initial states");
+        onCreateInitialStates();
+
+        mTimeInterval = mSimulation.getTimeInterval() / (mSimulation.getFrameRate() * FrameRateThread.INNER_STATES_COUNT);
     }
 
     protected void onCreateCache() {
-        mPlanetStates = new PlanetState[mStepCount][mPlanetCount];
+        mLastState = new PlanetState[mPlanetCount];
+        mNextState = new PlanetState[mPlanetCount];
 
         // a polynomial with 4 as the highest power, has four solutions
         mCachedCollisionRootsArray = new double[4];
     }
 
-    protected void onCreateInitialStates() {
-        PlanetState[] states = mPlanetStates[0];
+    public PlanetState[] getLastComputedStates() {
+        return mLastState;
+    }
+
+    protected PlanetState[] onCreateInitialStates() {
+        PlanetState[] states = mLastState;
 
         for (int i = 0; i < mPlanetCount; i++) {
-            states[i] = new PlanetState(planets[i]);
+            states[i] = new PlanetState(mPlanets[i]);
+        }
+
+        return states;
+    }
+
+    @Override
+    public PlanetState[] computeStates() {
+        long beginningStateTime = getTime();
+
+        copyFromLastState();
+
+        computeAccelerations(mPlanets, mNextState);
+
+        advance(mTimeInterval, mNextState);
+
+        swapStateArrays();
+
+        if (DEBUG) {
+            debug("A new state is complete " + " with " + (getTime() - beginningStateTime) + " milliseconds");
+        }
+
+        return mLastState;
+    }
+
+    protected void clearAccelerations(PlanetState[] states) {
+        for (PlanetState state : states) {
+            state.clearAcceleration();
         }
     }
 
     public abstract void computeAccelerations(Planet[] planets, PlanetState[] actualStates);
 
-    /**
-     * Can be called only when {@link #mStepIndex} is higher than 0.
-     */
-    private void copyFromLastState() {
-        PlanetState[] last = mPlanetStates[mStepIndex - 1];
-        for (int i = 0; i < mPlanetCount; i++) {
-            // TODO: 01/10/2017 Is better clone or copy constructor?
-            mActualStep[i] = last[i].clone();
+    protected void advance(double time, PlanetState[] states) {
+        double halfTimeSqr = time * time * 0.5;
+
+        for (PlanetState state : states) {
+            // advance position
+            state.x += state.vx * time + state.ax * halfTimeSqr;
+            state.y += state.vy * time + state.ay * halfTimeSqr;
+
+            // advance velocity
+            state.vx += state.ax * time;
+            state.vy += state.ay * time;
         }
     }
 
-    @Override
-    public int getStatesPerCycle() {
-        return mSimulation.getStatesPerCycle();
+    private void copyFromLastState() {
+        for (int i = 0; i < mPlanetCount; i++) {
+            // TODO: 01/10/2017 Is better clone or copy constructor?
+            mNextState[i] = mLastState[i].clone();
+        }
+    }
+
+    private void swapStateArrays() {
+        PlanetState[] aux = mLastState;
+        mLastState = mNextState;
+        mNextState = aux;
     }
 
     /**
@@ -203,13 +153,13 @@ public abstract class DefaultSimulator extends Thread implements Simulator {
 
         double smallestTime = remainingTime;
 
-        for (int i = 0; i < planetCount && !isInterrupted(); i++) {
+        for (int i = 0; i < planetCount; i++) {
             PlanetState s0 = actualStates[i];
             Planet p0 = planets[i];
 
             double r0 = p0.getRadius();
 
-            for (int j = i + 1; j < planetCount && !isInterrupted(); j++) {
+            for (int j = i + 1; j < planetCount; j++) {
                 PlanetState s1 = actualStates[j];
                 Planet p1 = planets[j];
 
@@ -348,7 +298,7 @@ public abstract class DefaultSimulator extends Thread implements Simulator {
     }
 
     private double newtonRaphson(Function function, double x, int loopLimit, double tolerance) {
-        while (loopLimit-- > 0 && !isInterrupted()) {
+        while (loopLimit-- > 0) {
             function.solve(x);
             double dy = function.getValueDerivative();
             if (dy == 0) {
@@ -368,35 +318,6 @@ public abstract class DefaultSimulator extends Thread implements Simulator {
         function.setState(Function.STATE_LOOP_LIMIT_REACHED);
 
         return x;
-    }
-
-    private void advance(double time) {
-        SimulationUtils.advance(mPlanetCount, time, mActualStep);
-    }
-
-    @Override
-    public Simulation getSimulation() {
-        return mSimulation;
-    }
-
-    @Override
-    public PlanetState[] getPlanetStates(int state) {
-        return mPlanetStates[state];
-    }
-
-    @Override
-    public boolean isStateDone(int state) {
-        return state < mDoneState;
-    }
-
-    @Override
-    public int getLastAvailableState() {
-        return mDoneState;
-    }
-
-    @Override
-    public Planet[] getPlanets() {
-        return planets;
     }
 
     private static int solveSquare(double a, double b, double c, double[] roots) {
