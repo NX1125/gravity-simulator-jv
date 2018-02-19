@@ -18,9 +18,9 @@ public class EnergyStatsDialog extends JFrame {
 
     private EnergyStatsComponent mEnergyStatsComponent;
 
-    private Window mWindow;
+    private SimulationDialog mWindow;
 
-    public EnergyStatsDialog(int length, Window window) {
+    public EnergyStatsDialog(int length, SimulationDialog window) {
         mEnergyStatsComponent = new EnergyStatsComponent(length);
 
         mWindow = window;
@@ -57,11 +57,13 @@ public class EnergyStatsDialog extends JFrame {
         dispose();
     }
 
-    private void onCancel() {
+    public void onCancel() {
         // add your code here if necessary
-        mWindow.setVisible(false);
+        if (isVisible()) {
+            mWindow.onCancel();
 
-        dispose();
+            dispose();
+        }
     }
 
     public void addValue(double kinetic, double potential) {

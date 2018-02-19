@@ -4,10 +4,57 @@ import nx1125.simulator.simulation.Planet;
 import nx1125.simulator.windows.MainWindow;
 
 import javax.swing.*;
+import java.awt.*;
 
 public class Main {
 
+    private static double x0 = 0.5;
+    private static double x1 = 1.5;
+    private static double a0 = -5.5;
+    private static double a1 = 100;
+    private static double h = 1.0;
+
+    private static double sinkForce(double r) {
+        return a0 / (r * r);
+    }
+
+    private static double backfireForce(double r) {
+        return force(r, x0, a1);
+    }
+
+    private static double brokenForce(double r) {
+        return 0.0; // force(r, x1, -a1);
+    }
+
+    private static double force(double r, double x0, double a) {
+        // r -= x0;
+        return (a * r) / Math.pow(r * r + h * h, 1.5);
+    }
+
+    private static boolean testPlotter() {
+        Plotter plotter = new Plotter();
+
+        plotter.addFunction(Main::backfireForce, Color.blue);
+        plotter.addFunction(Main::sinkForce, Color.green);
+//        plotter.addFunction(Main::brokenForce, Color.pink);
+        plotter.addFunction(x -> sinkForce(x) + backfireForce(x), Color.black);
+
+        JFrame frame = new JFrame();
+
+        frame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
+        frame.setContentPane(plotter);
+
+        frame.pack();
+        frame.setLocationRelativeTo(null);
+
+        frame.setVisible(true);
+
+        return true;
+    }
+
     public static void main(String[] args) {
+        // if (testPlotter()) return;
+
         MainWindow window = new MainWindow();
 
         window.pack();

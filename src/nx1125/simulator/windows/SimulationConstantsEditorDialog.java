@@ -1,9 +1,9 @@
 package nx1125.simulator.windows;
 
-import nx1125.simulator.elastic.ElasticSimulation;
-import nx1125.simulator.elastic.LinearElasticSimulation;
-import nx1125.simulator.gravity.GravitySimulation;
 import nx1125.simulator.simulation.Simulation;
+import nx1125.simulator.simulation.elastic.ElasticSimulation;
+import nx1125.simulator.simulation.elastic.linear.LinearElasticSimulation;
+import nx1125.simulator.simulation.gravity.GravitySimulation;
 
 import javax.swing.*;
 import java.awt.event.KeyEvent;
@@ -90,7 +90,7 @@ public class SimulationConstantsEditorDialog extends JDialog {
 
                 elasticSimulation.setElasticConstant(getDoubleOf(mElasticConstant));
                 elasticSimulation.setRestingRadius(getDoubleOf(mElasticRest));
-                elasticSimulation.setFriction(getDoubleOf(mFriction));
+                elasticSimulation.setFrictionByVelocity(getDoubleOf(mFriction));
 
                 if (elasticSimulation instanceof LinearElasticSimulation) {
                     ((LinearElasticSimulation) elasticSimulation).setTension(getDoubleOf(mTension));

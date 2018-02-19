@@ -1,6 +1,7 @@
-package nx1125.simulator.elastic;
+package nx1125.simulator.simulation.elastic.linear;
 
 import nx1125.simulator.simulation.Simulator;
+import nx1125.simulator.simulation.elastic.ElasticSimulation;
 
 public class LinearElasticSimulation extends ElasticSimulation {
 

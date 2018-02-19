@@ -3,8 +3,7 @@ package nx1125.simulator;
 import nx1125.simulator.simulation.PlanetState;
 import nx1125.simulator.simulation.Simulator;
 import nx1125.simulator.windows.EnergyStatsDialog;
-
-import java.awt.*;
+import nx1125.simulator.windows.SimulationDialog;
 
 /**
  * Created by guilh on 01/10/2017.
@@ -18,6 +17,8 @@ public class FrameRateThread extends Thread {
 
     private static final boolean DEBUG = false;
 
+    private final Object mProcessingLock = new Object();
+
     private final int mFrameRate;
 
     private final int mMillisecondsByFrame;
@@ -30,12 +31,11 @@ public class FrameRateThread extends Thread {
 
     private Simulator mSimulator;
 
-    private volatile boolean mProcessingSimulation;
-
     private EnergyStatsDialog mEnergyStatsDialog;
 
     public FrameRateThread(Simulator simulator,
-                           OnFrameUpdateListener onFrameUpdateListener, Window mainWindow) {
+                           OnFrameUpdateListener onFrameUpdateListener,
+                           SimulationDialog mainWindow) {
         super("FrameRateThread");
 
         mSimulator = simulator;
@@ -75,12 +75,12 @@ public class FrameRateThread extends Thread {
         boolean increased = false;
 
         debug("Starting loop of frame rate");
-        while (!interrupted()) {
+        while (!super.isInterrupted()) {
             if (!mPlay) {
                 debug("run: Entering pause loop and listen to invalidate events only. Actual frame = " + mFrame);
                 mOnFrameUpdateListener.onPause();
                 while (!mPlay) {
-                    if (interrupted()) {
+                    if (super.isInterrupted()) {
                         onInterrupt();
                         return;
                     }
@@ -92,31 +92,32 @@ public class FrameRateThread extends Thread {
 
             if ((mFrame % mFrameRate) == 0) {
                 debug("onUpdateFrame: New cycle at frame = " + mFrame);
-                System.out.println("Energy of the system: " + mSimulator.getTotalEnergy());
+                // debug("Energy of the system: " + mSimulator.getTotalEnergy());
             }
 
-            mProcessingSimulation = true;
-            PlanetState[] states = null;
-            for (int i = 0; i < INNER_STATES_COUNT; i++) {
-                states = mSimulator.computeStates();
-            }
-            mProcessingSimulation = false;
+//            PlanetState[] states = null;
 
-            double kinetic = mSimulator.getKineticEnergy();
-            double potential = mSimulator.getPotentialEnergy();
+//            synchronized (mProcessingLock) {
+//                for (int i = 0; i < INNER_STATES_COUNT; i++) {
+//                    states = mSimulator.computeStates();
+//                }
+//            }
+//
+//            double kinetic = mSimulator.getKineticEnergy();
+//            double potential = mSimulator.getPotentialEnergy();
+//
+//            double energy = kinetic + potential;
+//            if (lastEnergy < energy && !increased) {
+//                increased = true;
+//                // debug("Energy is now increasing (" + lastEnergy + " -> " + energy + ')');
+//            } else if (lastEnergy > energy && increased) {
+//                increased = false;
+//                // debug("Energy is now decreasing (" + lastEnergy + " -> " + energy + ')');
+//            }
+//            lastEnergy = energy;
+//            mEnergyStatsDialog.addValue(kinetic, potential);
 
-            double energy = kinetic + potential;
-            if (lastEnergy < energy && !increased) {
-                increased = true;
-                debug("Energy is now increasing (" + lastEnergy + " -> " + energy + ')');
-            } else if (lastEnergy > energy && increased) {
-                increased = false;
-                debug("Energy is now decreasing (" + lastEnergy + " -> " + energy + ')');
-            }
-            lastEnergy = energy;
-            mEnergyStatsDialog.addValue(kinetic, potential);
-
-            mOnFrameUpdateListener.onFrameChanged(this, mFrame, states);
+//            mOnFrameUpdateListener.onFrameChanged(this, mFrame, states);
 
             // debug("run: Time = " + lastFrameTime);
 
@@ -125,7 +126,7 @@ public class FrameRateThread extends Thread {
                 revalidate();
 
                 time = System.currentTimeMillis();
-            } while ((time - lastFrameTime) < mMillisecondsByFrame);
+            } while ((time - lastFrameTime) < mMillisecondsByFrame && !super.isInterrupted());
 
             mActualFrameTimeLength = time - lastFrameTime;
 
@@ -137,13 +138,22 @@ public class FrameRateThread extends Thread {
         onInterrupt();
     }
 
-    protected void onInterrupt() {
-        debug("Thread interrupted. Exiting loop and finishing thread.");
-        mEnergyStatsDialog.setVisible(false);
+    public void restart() {
+        synchronized (mProcessingLock) {
+            mSimulator.restart();
+        }
     }
 
-    public boolean isProcessingSimulation() {
-        return mProcessingSimulation;
+    public Object getProcessingLock() {
+        return mProcessingLock;
+    }
+
+    public EnergyStatsDialog getEnergyStatsDialog() {
+        return mEnergyStatsDialog;
+    }
+
+    protected void onInterrupt() {
+        debug("Thread interrupted. Exiting loop and finishing thread.");
     }
 
     private void revalidate() {

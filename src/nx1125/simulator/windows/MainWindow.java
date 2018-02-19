@@ -1,11 +1,12 @@
 package nx1125.simulator.windows;
 
 import nx1125.simulator.components.EditSimulatorComponent;
-import nx1125.simulator.elastic.LinearElasticSimulation;
-import nx1125.simulator.gravity.GravitySimulation;
 import nx1125.simulator.simulation.Planet;
 import nx1125.simulator.simulation.Simulation;
 import nx1125.simulator.simulation.Simulator;
+import nx1125.simulator.simulation.elastic.AbstractLinearElasticSimulator;
+import nx1125.simulator.simulation.elastic.linear2.LinearElasticSimulation2;
+import nx1125.simulator.simulation.gravity.GravitySimulation;
 
 import javax.swing.*;
 import javax.swing.text.DefaultFormatterFactory;
@@ -59,7 +60,7 @@ public class MainWindow extends JFrame {
     private boolean mEdited = false;
 
     public MainWindow() {
-        mSimulation = new LinearElasticSimulation();
+        mSimulation = new LinearElasticSimulation2(60);
 
         System.out.println("Simulation type: " + mSimulation.getClass());
 
@@ -156,12 +157,12 @@ public class MainWindow extends JFrame {
 
         initMenuBar();
 
-        if (mSimulation instanceof LinearElasticSimulation) {
+        if (mSimulation instanceof AbstractLinearElasticSimulator) {
             // ((LinearElasticSimulation) mSimulation).setRestingRadius(0.5 * step);
 //            ((LinearElasticSimulation) mSimulation).setFriction(0.0);
 //            ((LinearElasticSimulation) mSimulation).setElasticConstant(100);
-            mSimulation.setTimeInterval(0.1);
         }
+        mSimulation.setTimeInterval(1.0);
 
         pack();
     }

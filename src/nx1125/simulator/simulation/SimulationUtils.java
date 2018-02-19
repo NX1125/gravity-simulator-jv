@@ -29,4 +29,15 @@ public class SimulationUtils {
 //
 //        return SQRT_BIG[highSqr] * SQRT_LOW[(int) (lowSqr*0.5 * SMALL_VALUES_COUNT)];
     }
+
+    public static double atan2(double x, double y) {
+        double atan2 = Math.atan2(y, x);
+        return atan2 < 0 ? 2 * Math.PI + atan2 : atan2;
+    }
+
+    public static void clearAccelerations(PlanetState[] states) {
+        for (PlanetState state : states) {
+            state.clearAcceleration();
+        }
+    }
 }

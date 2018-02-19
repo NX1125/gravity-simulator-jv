@@ -34,4 +34,8 @@ public interface Simulator {
     }
 
     double getPotentialEnergy();
+
+    void restart();
+
+    // sharkboy, lavagirl
 }

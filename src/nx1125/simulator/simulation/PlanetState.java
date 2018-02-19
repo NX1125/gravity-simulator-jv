@@ -15,9 +15,8 @@ public class PlanetState implements Cloneable {
     public double ax;
     public double ay;
 
-    public double ringAngle;
-    public double ringAngleVelocity;
-    public double ringAngleAcceleration;
+    public double forceX;
+    public double forceY;
 
     public PlanetState(Planet planet) {
         x = planet.getX();
@@ -39,11 +38,15 @@ public class PlanetState implements Cloneable {
 
         ax = state.ax;
         ay = state.ay;
+
+        forceX = state.forceX;
+        forceY = state.forceY;
     }
 
     public PlanetState(double x, double y, double vx, double vy) {
         this.x = x;
         this.y = y;
+
         this.vx = vx;
         this.vy = vy;
     }
@@ -72,10 +75,14 @@ public class PlanetState implements Cloneable {
         }
     }
 
+    public void clearForce() {
+        forceX = 0.0;
+        forceY = 0.0;
+    }
+
     public void clearAcceleration() {
         ax = 0;
         ay = 0;
-        ringAngleAcceleration = 0;
     }
 
     public double distance(PlanetState s1) {
@@ -86,5 +93,32 @@ public class PlanetState implements Cloneable {
         x -= this.x;
         y -= this.y;
         return x * x + y * y;
+    }
+
+    public double distanceSqr(PlanetState s) {
+        double dx = x - s.x;
+        double dy = y - s.y;
+        return dx * dx + dy * dy;
+    }
+
+    public void setState(PlanetState state) {
+        x = state.x;
+        y = state.y;
+
+        vx = state.vx;
+        vy = state.vy;
+
+        ax = state.ax;
+        ay = state.ay;
+    }
+
+    public void setState(Planet planet) {
+        x = planet.getX();
+        y = planet.getY();
+
+        vx = planet.getVx();
+        vy = planet.getVy();
+
+        clearAcceleration();
     }
 }

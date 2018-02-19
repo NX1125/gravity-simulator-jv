@@ -1,4 +1,4 @@
-package nx1125.simulator.elastic;
+package nx1125.simulator.simulation.elastic;
 
 import nx1125.simulator.simulation.DefaultSimulator;
 import nx1125.simulator.simulation.Planet;
@@ -8,7 +8,7 @@ import nx1125.simulator.simulation.SimulationUtils;
 import java.util.LinkedList;
 import java.util.List;
 
-public class ElasticSimulator extends DefaultSimulator {
+public class ElasticSimulator extends DefaultSimulator implements AbstractElasticSimulator {
 
     private final ElasticSimulation mElasticSimulation;
 
@@ -29,12 +29,14 @@ public class ElasticSimulator extends DefaultSimulator {
         mRestingDistance = mElasticSimulation.getRestingRadius();
     }
 
+    @Override
     public boolean addLockedPlanet(int index) {
         return !mLockedPlanets.contains(index) && mLockedPlanets.add(index);
     }
 
-    public boolean removeLockedPlanet(int index) {
-        return mLockedPlanets.remove((Integer) index);
+    @Override
+    public void removeLockedPlanet(int index) {
+        mLockedPlanets.remove((Integer) index);
     }
 
     @Override
@@ -44,7 +46,7 @@ public class ElasticSimulator extends DefaultSimulator {
 
     @Override
     public void computeAccelerations(Planet[] planets, PlanetState[] states) {
-        clearAccelerations(states);
+        SimulationUtils.clearAccelerations(states);
 
         for (int i = 0; i < planets.length; i++) {
             PlanetState s0 = states[i];
@@ -106,35 +108,38 @@ public class ElasticSimulator extends DefaultSimulator {
 
             s.vx = s.vy = 0;
             s.ax = s.ay = 0;
-
-            s.ringAngleAcceleration = 0;
-            s.ringAngleVelocity = 0;
         }
 
         return false;
     }
 
-    public void setConstant(double constant) {
-        mElasticConstant = constant;
+    @Override
+    public double getFrictionByVelocity() {
+        return mFrictionByVelocity;
     }
 
-    public void setFriction(double friction) {
-        mFrictionByVelocity = friction;
+    @Override
+    public void setFrictionByVelocity(double frictionByVelocity) {
+        mFrictionByVelocity = frictionByVelocity;
     }
 
-    public void setRadius(double radius) {
-        mRestingDistance = radius;
-    }
-
+    @Override
     public double getElasticConstant() {
         return mElasticConstant;
     }
 
-    public double getVelocityFriction() {
-        return mFrictionByVelocity;
+    @Override
+    public void setElasticConstant(double elasticConstant) {
+        mElasticConstant = elasticConstant;
     }
 
+    @Override
     public double getRestingDistance() {
         return mRestingDistance;
+    }
+
+    @Override
+    public void setRestingDistance(double restingDistance) {
+        mRestingDistance = restingDistance;
     }
 }

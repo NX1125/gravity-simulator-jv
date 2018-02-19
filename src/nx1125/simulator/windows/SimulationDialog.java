@@ -2,12 +2,11 @@ package nx1125.simulator.windows;
 
 import nx1125.simulator.FrameRateThread;
 import nx1125.simulator.components.SimulatorComponent;
-import nx1125.simulator.elastic.ElasticSimulator;
-import nx1125.simulator.elastic.LinearElasticSimulator;
 import nx1125.simulator.simulation.Planet;
 import nx1125.simulator.simulation.PlanetState;
 import nx1125.simulator.simulation.Simulation;
 import nx1125.simulator.simulation.Simulator;
+import nx1125.simulator.simulation.elastic.AbstractElasticSimulator;
 
 import javax.swing.*;
 import java.awt.*;
@@ -47,7 +46,7 @@ public class SimulationDialog extends JFrame {
         mFramePerSecond = simulator.getSimulation().getFrameRate();
         mMainWindow = mainWindow;
 
-        if (mSimulator instanceof LinearElasticSimulator) {
+        if (mSimulator instanceof AbstractElasticSimulator) {
             dialog = new SlidersDialog(this);
 
             dialog.setVisible(true);
@@ -68,6 +67,11 @@ public class SimulationDialog extends JFrame {
             public void windowClosing(WindowEvent e) {
                 onCancel();
             }
+
+            @Override
+            public void windowClosed(WindowEvent e) {
+                onCancel();
+            }
         });
 
         // call onCancel() on ESCAPE
@@ -83,15 +87,7 @@ public class SimulationDialog extends JFrame {
         mSimulationPane.setLayout(new CardLayout(5, 5));
         mSimulationPane.add(mSimulatorComponent);
 
-        mPlayButton.addActionListener(e -> {
-            if (mFrameRateThread.isPlaying()) {
-                mFrameRateThread.pause();
-                mPlayButton.setText("Play");
-            } else {
-                mFrameRateThread.play();
-                mPlayButton.setText("Pause");
-            }
-        });
+        mPlayButton.addActionListener(e -> mFrameRateThread.restart());
 
         System.out.println("Creating frame rate thread");
         mFrameRateThread = new FrameRateThread(simulator,
@@ -120,12 +116,12 @@ public class SimulationDialog extends JFrame {
                     }
                 }, this);
 
-        if (mSimulator instanceof ElasticSimulator) {
+        if (mSimulator instanceof AbstractElasticSimulator) {
             System.out.println("Elastic simulation detected. Adding support for locked planets click listener");
 
             mSimulatorComponent.setOnPlanetClickedListener((index, planet) -> {
                 System.out.println("Toggling planet " + planet + " lock state");
-                ElasticSimulator s = (ElasticSimulator) mSimulator;
+                AbstractElasticSimulator s = (AbstractElasticSimulator) mSimulator;
 
                 if (!s.addLockedPlanet(index)) {
                     s.removeLockedPlanet(index);
@@ -143,29 +139,25 @@ public class SimulationDialog extends JFrame {
                     mReferenceX = (float) (x - planet.x);
                     mReferenceY = (float) (y - planet.y);
 
-                    mWasLocked = !((ElasticSimulator) mSimulator).addLockedPlanet(index);
+                    mWasLocked = !((AbstractElasticSimulator) mSimulator).addLockedPlanet(index);
                 }
 
                 @Override
                 public void onPlanetDragged(float x, float y, int index, PlanetState planet) {
-                    while (mFrameRateThread.isProcessingSimulation()) {
-                    }
-
-                    planet.x = x - mReferenceX;
-                    planet.y = y - mReferenceY;
+                    ((AbstractElasticSimulator) mSimulator).setPlanetLocation(index, x - mReferenceX, y - mReferenceY);
                 }
 
                 @Override
                 public void onPlanetReleased(float x, float y, int index, PlanetState planet) {
                     if (!mWasLocked) {
-                        ((ElasticSimulator) mSimulator).removeLockedPlanet(index);
+                        ((AbstractElasticSimulator) mSimulator).removeLockedPlanet(index);
                     }
 
                     onPlanetDragged(x, y, index, planet);
                 }
             });
 
-            ElasticSimulator elasticSimulator = (ElasticSimulator) simulator;
+            AbstractElasticSimulator elasticSimulator = (AbstractElasticSimulator) simulator;
 
             elasticSimulator.addLockedPlanet(0);
             elasticSimulator.addLockedPlanet(elasticSimulator.getPlanetCount() - 1);
@@ -220,12 +212,21 @@ public class SimulationDialog extends JFrame {
         setJMenuBar(bar);
     }
 
-    private void onCancel() {
+    void onCancel() {
         // add your code here if necessary
-        dispose();
+        if (isVisible()) {
+            setVisible(false);
+            dispose();
 
-        mFrameRateThread.interrupt();
-        dialog.setVisible(false);
+            System.out.println("Sending interruption to frame rate thread");
+            mFrameRateThread.interrupt();
+            if (dialog != null) {
+                dialog.onCancel();
+            }
+            EnergyStatsDialog dialog = mFrameRateThread.getEnergyStatsDialog();
+            if (dialog != null)
+                dialog.onCancel();
+        }
     }
 
     public Simulator getSimulator() {

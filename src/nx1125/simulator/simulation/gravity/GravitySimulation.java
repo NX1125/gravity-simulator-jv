@@ -1,4 +1,4 @@
-package nx1125.simulator.gravity;
+package nx1125.simulator.simulation.gravity;
 
 import nx1125.simulator.simulation.Simulation;
 import nx1125.simulator.simulation.Simulator;

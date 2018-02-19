@@ -24,8 +24,6 @@ public abstract class DefaultSimulator implements Simulator {
     private PlanetState[] mLastState;
     private PlanetState[] mNextState;
 
-    private int mInnerStates = 500;
-
     public DefaultSimulator(Simulation simulation) {
         mPlanets = simulation.getPlanets();
         mPlanetCount = mPlanets.length;
@@ -90,6 +88,14 @@ public abstract class DefaultSimulator implements Simulator {
     }
 
     @Override
+    public void restart() {
+        for (int i = 0; i < mPlanetCount; i++) {
+            mLastState[i].setState(mPlanets[i]);
+            mNextState[i].setState(mPlanets[i]);
+        }
+    }
+
+    @Override
     public PlanetState[] computeStates() {
         long beginningStateTime = getTime();
 
@@ -106,12 +112,6 @@ public abstract class DefaultSimulator implements Simulator {
         }
 
         return mLastState;
-    }
-
-    protected void clearAccelerations(PlanetState[] states) {
-        for (PlanetState state : states) {
-            state.clearAcceleration();
-        }
     }
 
     public abstract void computeAccelerations(Planet[] planets, PlanetState[] actualStates);
@@ -141,6 +141,10 @@ public abstract class DefaultSimulator implements Simulator {
         PlanetState[] aux = mLastState;
         mLastState = mNextState;
         mNextState = aux;
+    }
+
+    public void setPlanetLocation(int index, double x, double y) {
+        mLastState[index].setLocation(x, y);
     }
 
     /**
@@ -318,6 +322,10 @@ public abstract class DefaultSimulator implements Simulator {
         function.setState(Function.STATE_LOOP_LIMIT_REACHED);
 
         return x;
+    }
+
+    protected void clearAccelerations(PlanetState[] states) {
+        SimulationUtils.clearAccelerations(states);
     }
 
     private static int solveSquare(double a, double b, double c, double[] roots) {

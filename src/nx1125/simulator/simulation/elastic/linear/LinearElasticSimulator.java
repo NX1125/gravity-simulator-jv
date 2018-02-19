@@ -1,11 +1,13 @@
-package nx1125.simulator.elastic;
+package nx1125.simulator.simulation.elastic.linear;
 
 import nx1125.simulator.simulation.Planet;
 import nx1125.simulator.simulation.PlanetState;
+import nx1125.simulator.simulation.elastic.AbstractLinearElasticSimulator;
+import nx1125.simulator.simulation.elastic.ElasticSimulator;
 
 import java.util.Arrays;
 
-public class LinearElasticSimulator extends ElasticSimulator {
+public class LinearElasticSimulator extends ElasticSimulator implements AbstractLinearElasticSimulator {
 
     private double[] mRingNetForces;
     private double[] mRingDirection;
@@ -25,27 +27,6 @@ public class LinearElasticSimulator extends ElasticSimulator {
         mRingRelativePosition = new double[getPlanetCount() * 2];
     }
 
-    @Override
-    protected PlanetState[] onCreateInitialStates() {
-        PlanetState[] states = super.onCreateInitialStates();
-
-        for (int i = 1, count = states.length - 1; i < count; i++) {
-            PlanetState s0 = states[i - 1];
-            PlanetState s = states[i];
-            PlanetState s1 = states[i + 1];
-
-            // the ring has the same direction as the vector coming from the planet center with an equals angle between
-            // both of the planets connections
-
-            s.ringAngle = (atan2(s.x - s1.x, s.y - s1.y) + atan2(s.x - s0.x, s.y - s0.y)) * 0.5;
-        }
-
-        states[0].ringAngle = states[1].ringAngle;
-        states[states.length - 1].ringAngle = states[states.length - 2].ringAngle;
-
-        return states;
-    }
-
     private static double atan2(double x, double y) {
         double atan2 = Math.atan2(y, x);
         return atan2 < 0 ? 2 * Math.PI + atan2 : atan2;
@@ -60,19 +41,19 @@ public class LinearElasticSimulator extends ElasticSimulator {
             PlanetState s0 = states[i - 1];
             PlanetState s1 = states[i + 1];
 
-            state.ringAngle = (atan2(s1.x - state.x, s1.y - state.y)
-                    + atan2(s0.x - state.x, s0.y - state.y)) * 0.5;
+//            state.ringAngle = (atan2(s1.x - state.x, s1.y - state.y)
+//                    + atan2(s0.x - state.x, s0.y - state.y)) * 0.5;
+//
+//            double r = getPlanet(i).getRadius();
+//
+//            double cos = Math.cos(state.ringAngle);
+//            double sin = Math.sin(state.ringAngle);
 
-            double r = getPlanet(i).getRadius();
-
-            double cos = Math.cos(state.ringAngle);
-            double sin = Math.sin(state.ringAngle);
-
-            mRingDirection[coordinateIndex] = cos;
-            mRingRelativePosition[coordinateIndex++] = cos * r;
-
-            mRingDirection[coordinateIndex] = sin;
-            mRingRelativePosition[coordinateIndex++] = sin * r;
+//            mRingDirection[coordinateIndex] = cos;
+//            mRingRelativePosition[coordinateIndex++] = cos * r;
+//
+//            mRingDirection[coordinateIndex] = sin;
+//            mRingRelativePosition[coordinateIndex++] = sin * r;
         }
     }
 
@@ -158,7 +139,7 @@ public class LinearElasticSimulator extends ElasticSimulator {
             double dy = mRingDirection[ringDirectionIndex++];
 
             // the orthogonal is (-dy, dx)
-            states[i].ringAngleAcceleration = (dx * ay - dy * ax) / p.getRadius();
+//            states[i].ringAngleAcceleration = (dx * ay - dy * ax) / p.getRadius();
 
             netForceIndex += 4;
         }

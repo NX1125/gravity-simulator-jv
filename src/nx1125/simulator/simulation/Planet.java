@@ -20,6 +20,7 @@ public class Planet implements Serializable {
     private float mRadius = 1;
     private float mRadiusSqr = mRadius * mRadius;
 
+
     public Planet() {
     }
 

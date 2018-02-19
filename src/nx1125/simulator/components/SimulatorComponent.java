@@ -1,10 +1,10 @@
 package nx1125.simulator.components;
 
-import nx1125.simulator.elastic.ElasticSimulator;
-import nx1125.simulator.elastic.LinearElasticSimulator;
 import nx1125.simulator.simulation.Planet;
 import nx1125.simulator.simulation.PlanetState;
 import nx1125.simulator.simulation.Simulator;
+import nx1125.simulator.simulation.elastic.AbstractElasticSimulator;
+import nx1125.simulator.simulation.elastic.linear.LinearElasticSimulator;
 
 import java.awt.*;
 import java.awt.event.MouseEvent;
@@ -47,15 +47,15 @@ public class SimulatorComponent extends CartesianComponent {
 
     private Color mLinePathColor;
 
-    private ElasticSimulator mElasticSimulator;
+    private AbstractElasticSimulator mElasticSimulator;
     private Color mRestingRadiusBorderColor = Color.red;
     private Color mRingColor = Color.blue.brighter();
 
     public SimulatorComponent(Simulator simulator) {
         init();
 
-        if (simulator instanceof ElasticSimulator) {
-            mElasticSimulator = (ElasticSimulator) simulator;
+        if (simulator instanceof AbstractElasticSimulator) {
+            mElasticSimulator = (AbstractElasticSimulator) simulator;
         }
     }
 
@@ -288,6 +288,17 @@ public class SimulatorComponent extends CartesianComponent {
 
                         canvas.drawLine((int) (x - dx), (int) (y - dy), (int) (x + dx), (int) (y + dy));
                     }
+                }
+
+                radius = (float) (getCartesianScale() * mElasticSimulator.getRestingDistance());
+                radius2 = radius * 2;
+
+                canvas.setColor(mRestingRadiusBorderColor);
+                for (int i = 0, j = 0; i < mPlanetStateArray.length; i++) {
+                    mOvalCache.setFrame(mTransformArray[j++] - radius, mTransformArray[j++] - radius,
+                            radius2, radius2);
+
+                    canvas.draw(mOvalCache);
                 }
             }
 

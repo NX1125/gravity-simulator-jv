@@ -1,25 +1,25 @@
 package nx1125.simulator.windows;
 
-import nx1125.simulator.elastic.LinearElasticSimulator;
 import nx1125.simulator.simulation.Simulator;
+import nx1125.simulator.simulation.elastic.AbstractElasticSimulator;
 
 import javax.swing.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
-public class SlidersDialog extends JDialog {
+public class SlidersDialog extends JFrame {
 
     private static final double PROPORTION = 1000.0;
 
     private static final double MIN_CONSTANT = 0;
-    private static final double MAX_CONSTANT = 2000;
+    private static final double MAX_CONSTANT = 1000000;
 
     private static final double MIN_RADIUS = 0;
-    private static final double MAX_RADIUS = 0.5;
+    private static final double MAX_RADIUS = 10;
 
     private static final double MIN_FRICTION = 0;
-    private static final double MAX_FRICTION = 5;
+    private static final double MAX_FRICTION = 10;
 
     private JPanel contentPane;
     private JButton buttonOK;
@@ -34,21 +34,21 @@ public class SlidersDialog extends JDialog {
 
     private SimulationDialog mSimulationDialog;
 
-    private LinearElasticSimulator mLinearElasticSimulator;
+    private AbstractElasticSimulator mLinearElasticSimulator;
 
     public SlidersDialog(SimulationDialog dialog) {
         mSimulationDialog = dialog;
 
         Simulator simulator = dialog.getSimulator();
-        if (simulator instanceof LinearElasticSimulator) {
-            mLinearElasticSimulator = (LinearElasticSimulator) simulator;
+        if (simulator instanceof AbstractElasticSimulator) {
+            mLinearElasticSimulator = (AbstractElasticSimulator) simulator;
         } else {
             setVisible(false);
             return;
         }
 
         setContentPane(contentPane);
-        setModal(false);
+        // setModal(false);
         getRootPane().setDefaultButton(buttonOK);
 
         buttonCancel.addActionListener(e -> onCancel());
@@ -62,12 +62,12 @@ public class SlidersDialog extends JDialog {
         });
 
         mConstant.addChangeListener(e -> {
-            mLinearElasticSimulator.setConstant(getDoubleOf(mConstant, "elastic constant"));
+            mLinearElasticSimulator.setElasticConstant(getDoubleOf(mConstant, "elastic constant"));
             mConstantLabel.setText(Double.toString(mLinearElasticSimulator.getElasticConstant()));
         });
         mFriction.addChangeListener(e -> updateFriction());
         mRadius.addChangeListener(e -> {
-            mLinearElasticSimulator.setRadius(getDoubleOf(mRadius, "resting distance"));
+            mLinearElasticSimulator.setRestingDistance(getDoubleOf(mRadius, "resting distance"));
             mRadiusLabel.setText(Double.toString(mLinearElasticSimulator.getRestingDistance()));
         });
 
@@ -78,28 +78,28 @@ public class SlidersDialog extends JDialog {
         // mChangeFrictionAccordingToConstantCheckBox.addActionListener(e -> mLinearElasticSimulator.setFriction(Math.sqrt(getDoubleOf(mFriction, "friction") / (4 * getDoubleOf(mConstant, "constant")))));
 
         setValueOf(MIN_CONSTANT, mLinearElasticSimulator.getElasticConstant(), mConstant, MAX_CONSTANT);
-        setValueOf(MIN_FRICTION, mLinearElasticSimulator.getVelocityFriction(), mFriction, MAX_FRICTION);
+        setValueOf(MIN_FRICTION, mLinearElasticSimulator.getFrictionByVelocity(), mFriction, MAX_FRICTION);
         setValueOf(MIN_RADIUS, mLinearElasticSimulator.getRestingDistance(), mRadius, MAX_RADIUS);
 
         pack();
 
         setLocationRelativeTo(dialog);
-
-        setAlwaysOnTop(true);
     }
 
     private void updateFriction() {
         if (!mChangeFrictionAccordingToConstantCheckBox.isSelected()) {
-            mLinearElasticSimulator.setFriction(getDoubleOf(mFriction, "friction"));
-            mFrictionLabel.setText(Double.toString(mLinearElasticSimulator.getVelocityFriction()));
+            mLinearElasticSimulator.setFrictionByVelocity(getDoubleOf(mFriction, "friction"));
+            mFrictionLabel.setText(Double.toString(mLinearElasticSimulator.getFrictionByVelocity()));
         }
     }
 
-    private void onCancel() {
+    void onCancel() {
         // add your code here if necessary
-        mSimulationDialog.setVisible(false);
+        if (isVisible()) {
+            mSimulationDialog.onCancel();
 
-        dispose();
+            dispose();
+        }
     }
 
     public static double getDoubleOf(JSlider slider, String type) {

@@ -1,4 +1,4 @@
-package nx1125.simulator.elastic;
+package nx1125.simulator.simulation.elastic;
 
 import nx1125.simulator.simulation.Simulation;
 import nx1125.simulator.simulation.Simulator;
@@ -20,8 +20,8 @@ public class ElasticSimulation extends Simulation {
         return mFriction;
     }
 
-    public void setFriction(double friction) {
-        mFriction = friction;
+    public void setFrictionByVelocity(double frictionByVelocity) {
+        mFriction = frictionByVelocity;
     }
 
     public double getElasticConstant() {
