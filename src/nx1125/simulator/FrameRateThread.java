@@ -1,15 +1,18 @@
 package nx1125.simulator;
 
-import nx1125.simulator.simulation.PlanetState;
 import nx1125.simulator.simulation.Simulator;
 import nx1125.simulator.windows.EnergyStatsDialog;
 import nx1125.simulator.windows.SimulationDialog;
+
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 
 /**
  * Created by guilh on 01/10/2017.
  */
 
-public class FrameRateThread extends Thread {
+public class FrameRateThread {
 
     public static final int INNER_STATES_COUNT = 100;
 
@@ -21,33 +24,50 @@ public class FrameRateThread extends Thread {
 
     private final int mFrameRate;
 
-    private final int mMillisecondsByFrame;
     private final OnFrameUpdateListener mOnFrameUpdateListener;
+
     private int mFrame;
     private boolean mInvalidated;
     private boolean mPlay = true;
-
-    private long mActualFrameTimeLength;
 
     private Simulator mSimulator;
 
     private EnergyStatsDialog mEnergyStatsDialog;
 
+    private final Timer mTimer = new Timer(0, new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+
+            if ((mFrame % mFrameRate) == 0) {
+                debug("onUpdateFrame: New cycle at frame = " + mFrame);
+            }
+
+            mOnFrameUpdateListener.onFrameChanged(FrameRateThread.this, mFrame);
+
+            mFrame++;
+        }
+    });
+
     public FrameRateThread(Simulator simulator,
                            OnFrameUpdateListener onFrameUpdateListener,
                            SimulationDialog mainWindow) {
-        super("FrameRateThread");
-
         mSimulator = simulator;
         mFrameRate = simulator.getSimulation().getFrameRate();
 
         mOnFrameUpdateListener = onFrameUpdateListener;
 
-        mMillisecondsByFrame = 1000 / mFrameRate;
+        int millisecondsByFrame = 1000 / mFrameRate;
 
-        debug("FrameRateThread: Time of a frame: " + mMillisecondsByFrame);
+        mTimer.setRepeats(true);
+        mTimer.setDelay(millisecondsByFrame);
+
+        debug("FrameRateThread: Time of a frame: " + millisecondsByFrame);
 
         mEnergyStatsDialog = new EnergyStatsDialog(1000, mainWindow);
+    }
+
+    public void stop() {
+        mTimer.stop();
     }
 
     public int getFrame() {
@@ -57,86 +77,6 @@ public class FrameRateThread extends Thread {
 //    public void setInnerStates(int innerStates) {
 //        mInnerStates = innerStates;
 //    }
-
-    @Override
-    public void run() {
-        debug("Starting frame rate thread");
-
-        mEnergyStatsDialog.setVisible(true);
-
-        long lastFrameTime = System.currentTimeMillis();
-
-        mFrame = 0;
-
-        debug("Calling onCreate of Simulator");
-        mSimulator.onCreate();
-
-        double lastEnergy = 0;
-        boolean increased = false;
-
-        debug("Starting loop of frame rate");
-        while (!super.isInterrupted()) {
-            if (!mPlay) {
-                debug("run: Entering pause loop and listen to invalidate events only. Actual frame = " + mFrame);
-                mOnFrameUpdateListener.onPause();
-                while (!mPlay) {
-                    if (super.isInterrupted()) {
-                        onInterrupt();
-                        return;
-                    }
-                    revalidate();
-                }
-                debug("run: Exiting pause loop and starting play loop. Frame = " + mFrame);
-                mOnFrameUpdateListener.onPlay();
-            }
-
-            if ((mFrame % mFrameRate) == 0) {
-                debug("onUpdateFrame: New cycle at frame = " + mFrame);
-                // debug("Energy of the system: " + mSimulator.getTotalEnergy());
-            }
-
-//            PlanetState[] states = null;
-
-//            synchronized (mProcessingLock) {
-//                for (int i = 0; i < INNER_STATES_COUNT; i++) {
-//                    states = mSimulator.computeStates();
-//                }
-//            }
-//
-//            double kinetic = mSimulator.getKineticEnergy();
-//            double potential = mSimulator.getPotentialEnergy();
-//
-//            double energy = kinetic + potential;
-//            if (lastEnergy < energy && !increased) {
-//                increased = true;
-//                // debug("Energy is now increasing (" + lastEnergy + " -> " + energy + ')');
-//            } else if (lastEnergy > energy && increased) {
-//                increased = false;
-//                // debug("Energy is now decreasing (" + lastEnergy + " -> " + energy + ')');
-//            }
-//            lastEnergy = energy;
-//            mEnergyStatsDialog.addValue(kinetic, potential);
-
-//            mOnFrameUpdateListener.onFrameChanged(this, mFrame, states);
-
-            // debug("run: Time = " + lastFrameTime);
-
-            long time;
-            do {
-                revalidate();
-
-                time = System.currentTimeMillis();
-            } while ((time - lastFrameTime) < mMillisecondsByFrame && !super.isInterrupted());
-
-            mActualFrameTimeLength = time - lastFrameTime;
-
-            lastFrameTime = time;
-
-            mFrame++;
-        }
-
-        onInterrupt();
-    }
 
     public void restart() {
         synchronized (mProcessingLock) {
@@ -169,6 +109,9 @@ public class FrameRateThread extends Thread {
         if (play != mPlay) {
             mPlay = play;
 
+            if (play) mOnFrameUpdateListener.onPlay();
+            else mOnFrameUpdateListener.onPause();
+
             debug("setPlay: Changing state of FrameRateThread to " + play);
         }
     }
@@ -199,10 +142,6 @@ public class FrameRateThread extends Thread {
 
     public boolean isInitialFrame() {
         return mFrame == 0;
-    }
-
-    public long getActualFrameTimeLength() {
-        return mActualFrameTimeLength;
     }
 
     private void postInvalidate() {
@@ -242,10 +181,10 @@ public class FrameRateThread extends Thread {
         /**
          * Called when the frame changes.
          */
-        void onFrameChanged(FrameRateThread thread, int frameIndex, PlanetState[] states);
+        void onFrameChanged(FrameRateThread thread, int frameIndex);
 
         /**
-         * Called when the thread is invalidated after {@link #onFrameChanged(FrameRateThread, int, PlanetState[])}
+         * Called when the thread is invalidated after {@link #onFrameChanged(FrameRateThread, int)}
          * is called.
          */
         void onInvalidate(FrameRateThread thread);

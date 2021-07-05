@@ -102,7 +102,7 @@ public class SimulationDialog extends JFrame {
                     }
 
                     @Override
-                    public void onFrameChanged(FrameRateThread thread, int frameIndex, PlanetState[] states) {
+                    public void onFrameChanged(FrameRateThread thread, int frameIndex) {
                         mSimulatorComponent.setPlanetStateArray(states);
 
                         onInvalidate(thread);

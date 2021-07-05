@@ -27,9 +27,9 @@ public class SimulatorComponent extends CartesianComponent {
     private float mPlanetBorderWidth;
     private Stroke mPlanetBorderStroke;
     private int mPlanetCount = -1;
-    // must four times than mPlanetCount
+    // must be four times than mPlanetCount
     private float[] mCachedPointArray;
-    // must two times than mPlanetCount
+    // must be two times than mPlanetCount
     private float[] mTransformArray;
     private PlanetState[] mPlanetStateArray;
     private Planet[] mPlanetArray;
